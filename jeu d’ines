@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Découvre Casablanca - Jeu de Société</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-bounce {
+            animation: bounce 1s infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-amber-100 via-orange-100 to-red-100 p-4">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-6">
+            <h1 class="text-5xl font-bold text-orange-800 mb-2">🕌 Découvre Casablanca</h1>
+            <p class="text-lg text-gray-700">Jeu de société - Voyage culturel</p>
+        </div>
+
+```
+    <!-- Scores et Contrôles -->
+    <div class="bg-white rounded-2xl shadow-2xl p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                🏆 Scores
+            </h2>
+            <button onclick="resetGame()" class="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition">
+                🔄 Nouvelle Partie
+            </button>
+        </div>
+        <div id="players-container" class="grid grid-cols-2 gap-4"></div>
+    </div>
+
+    <!-- Plateau de Jeu -->
+    <div class="bg-white rounded-2xl shadow-2xl p-8 mb-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">🗺️ Plateau de Jeu</h2>
+        <div id="board-container" class="grid grid-cols-5 gap-4"></div>
+    </div>
+
+    <!-- Zone de Jeu et Cartes -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Contrôle du Dé -->
+        <div class="bg-white rounded-2xl shadow-2xl p-8">
+            <h3 id="current-player-text" class="text-2xl font-bold text-gray-800 mb-4 text-center"></h3>
+            <div class="flex flex-col items-center gap-6">
+                <button id="dice-btn" onclick="rollDice()" class="px-12 py-6 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-2xl font-bold text-2xl hover:from-orange-600 hover:to-red-600 flex items-center gap-3 shadow-xl transform hover:scale-105 transition">
+                    🎲 Lancer le Dé
+                </button>
+                <div id="dice-result" class="text-8xl"></div>
+            </div>
+        </div>
+
+        <!-- Carte Tirée -->
+        <div class="bg-white rounded-2xl shadow-2xl p-8">
+            <h3 class="text-2xl font-bold text-gray-800 mb-4 text-center">🃏 Carte</h3>
+            <div id="card-container" class="h-64 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl border-4 border-dashed border-gray-400">
+                <p class="text-gray-500 text-xl">En attente...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Légende -->
+    <div class="mt-6 bg-white rounded-2xl shadow-xl p-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-4">📋 Règles Rapides</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div class="p-3 bg-blue-50 rounded-lg">
+                <span class="text-2xl">🏛️</span>
+                <p class="font-semibold mt-1">Question</p>
+            </div>
+            <div class="p-3 bg-purple-50 rounded-lg">
+                <span class="text-2xl">🎭</span>
+                <p class="font-semibold mt-1">Défi</p>
+            </div>
+            <div class="p-3 bg-green-50 rounded-lg">
+                <span class="text-2xl">⚓</span>
+                <p class="font-semibold mt-1">Bonus</p>
+            </div>
+            <div class="p-3 bg-red-50 rounded-lg">
+                <span class="text-2xl">⚠️</span>
+                <p class="font-semibold mt-1">Malus</p>
+            </div>
+        </div>
+        <p class="text-gray-600 mt-4 text-sm">
+            <strong>Bonne réponse:</strong> +1 point et +1 case • <strong>Mauvaise réponse:</strong> -1 case
+        </p>
+    </div>
+</div>
+
+<script>
+    // État du jeu
+    let gameState = {
+        players: [
+            { id: 1, name: 'Joueur 1', position: 0, score: 0, color: 'bg-blue-500' },
+            { id: 2, name: 'Joueur 2', position: 0, score: 0, color: 'bg-red-500' },
+        ],
+        currentPlayerIndex: 0,
+        diceValue: null,
+        drawnCard: null,
+        waitingForAnswer: false,
+        showAnswer: false
+    };
+
+    const questions = [
+        { q: "Quel est le nom du plus grand port de Casablanca ?", a: "Port de Casablanca" },
+        { q: "Quelle célèbre mosquée se trouve à Casablanca ?", a: "Mosquée Hassan II" },
+        { q: "Quel plat traditionnel marocain mange-t-on souvent ?", a: "Tajine ou Couscous" },
+        { q: "Nomme un quartier historique de Casablanca.", a: "Medina ou Anfa" },
+        { q: "Quelle est la langue la plus parlée à Casablanca ?", a: "Arabe marocain" },
+        { q: "Quel est le surnom de Casablanca ?", a: "Casa" },
+        { q: "Cite un monument emblématique de Casablanca.", a: "Place Mohammed V" },
+    ];
+
+    const challenges = [
+        "Mime un touriste visitant la mosquée Hassan II",
+        "Trouve un objet qui rappelle la mer",
+        "Raconte une anecdote sur Casablanca",
+        "Chante une chanson populaire marocaine",
+        "Dessine la Mosquée Hassan II en 30 secondes",
+        "Imite l'appel à la prière",
+    ];
+
+    const boardPath = [
+        { id: 0, name: "Place Mohammed V", type: "start", icon: "🏁" },
+        { id: 1, name: "Medina", type: "question", icon: "🏛️" },
+        { id: 2, name: "Port", type: "bonus", icon: "⚓", effect: "+2 cases" },
+        { id: 3, name: "Maarif", type: "challenge", icon: "🎭" },
+        { id: 4, name: "Anfa", type: "question", icon: "🏛️" },
+        { id: 5, name: "Hassan II", type: "bonus", icon: "🕌", effect: "+1 case" },
+        { id: 6, name: "Ain Diab", type: "challenge", icon: "🎭" },
+        { id: 7, name: "Bd Mohammed V", type: "question", icon: "🏛️" },
+        { id: 8, name: "Souk", type: "malus", icon: "⚠️", effect: "-1 case" },
+        { id: 9, name: "Corniche", type: "end", icon: "🏆" },
+    ];
+
+    function renderPlayers() {
+        const container = document.getElementById('players-container');
+        container.innerHTML = '';
+        
+        gameState.players.forEach((player, idx) => {
+            const isActive = idx === gameState.currentPlayerIndex;
+            container.innerHTML += `
+                <div class="p-4 rounded-xl border-4 transition ${isActive ? 'border-orange-500 bg-orange-50 scale-105' : 'border-gray-200'}">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 ${player.color} rounded-full border-4 border-white shadow-lg"></div>
+                        <div>
+                            <p class="font-bold text-xl">${player.name}</p>
+                            <p class="text-gray-600 text-sm">🏆 ${player.score} pts • 📍 Case ${player.position}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function renderBoard() {
+        const container = document.getElementById('board-container');
+        container.innerHTML = '';
+        
+        boardPath.forEach(cell => {
+            const bgClass = 
+                cell.type === 'start' ? 'bg-green-100 border-green-500' :
+                cell.type === 'end' ? 'bg-yellow-100 border-yellow-500' :
+                cell.type === 'question' ? 'bg-blue-50 border-blue-400' :
+                cell.type === 'challenge' ? 'bg-purple-50 border-purple-400' :
+                cell.type === 'bonus' ? 'bg-emerald-50 border-emerald-400' :
+                'bg-red-50 border-red-400';
+            
+            const playersOnCell = gameState.players
+                .filter(p => p.position === cell.id)
+                .map(p => `<div class="w-8 h-8 ${p.color} rounded-full border-4 border-white shadow-lg animate-bounce"></div>`)
+                .join('');
+            
+            container.innerHTML += `
+                <div class="relative p-4 rounded-xl border-4 min-h-36 flex flex-col justify-between transition transform hover:scale-105 ${bgClass}">
+                    <div>
+                        <div class="text-3xl mb-2">${cell.icon}</div>
+                        <div class="font-bold text-sm text-gray-800">${cell.name}</div>
+                        ${cell.effect ? `<div class="text-xs text-gray-600 mt-1 font-semibold">${cell.effect}</div>` : ''}
+                    </div>
+                    <div class="flex gap-1 mt-3">${playersOnCell}</div>
+                </div>
+            `;
+        });
+    }
+
+    function updateCurrentPlayerText() {
+        document.getElementById('current-player-text').textContent = 
+            `🎮 Tour de ${gameState.players[gameState.currentPlayerIndex].name}`;
+    }
+
+    function rollDice() {
+        if (gameState.waitingForAnswer) return;
+        
+        const value = Math.floor(Math.random() * 6) + 1;
+        gameState.diceValue = value;
+        
+        document.getElementById('dice-result').innerHTML = `<span class="animate-bounce">🎲 ${value}</span>`;
+        document.getElementById('dice-btn').style.display = 'none';
+        
+        setTimeout(() => {
+            movePlayer(value);
+        }, 800);
+    }
+
+    function movePlayer(steps) {
+        const newPosition = Math.min(gameState.players[gameState.currentPlayerIndex].position + steps, boardPath.length - 1);
+        gameState.players[gameState.currentPlayerIndex].position = newPosition;
+        renderBoard();
+        renderPlayers();
+
+        const landedCase = boardPath[newPosition];
+        
+        setTimeout(() => {
+            if (landedCase.type === 'question') {
+                drawQuestionCard();
+            } else if (landedCase.type === 'challenge') {
+                drawChallengeCard();
+            } else if (landedCase.type === 'bonus') {
+                applyBonus(landedCase);
+            } else if (landedCase.type === 'malus') {
+                applyMalus(landedCase);
+            } else if (landedCase.type === 'end') {
+                setTimeout(() => {
+                    alert(`🎉 ${gameState.players[gameState.currentPlayerIndex].name} a gagné la partie !`);
+                }, 500);
+            }
+        }, 500);
+    }
+
+    function drawQuestionCard() {
+        const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
+        gameState.drawnCard = { type: 'question', content: randomQuestion };
+        gameState.waitingForAnswer = true;
+        renderCard();
+    }
+
+    function drawChallengeCard() {
+        const randomChallenge = challenges[Math.floor(Math.random() * challenges.length)];
+        gameState.drawnCard = { type: 'challenge', content: randomChallenge };
+        gameState.waitingForAnswer = true;
+        renderCard();
+    }
+
+    function applyBonus(caseInfo) {
+        const bonus = caseInfo.effect === "+2 cases" ? 2 : 1;
+        gameState.drawnCard = { type: 'bonus', content: `Case Bonus : ${caseInfo.effect} !` };
+        renderCard();
+        
+        setTimeout(() => {
+            const newPos = Math.min(gameState.players[gameState.currentPlayerIndex].position + bonus, boardPath.length - 1);
+            gameState.players[gameState.currentPlayerIndex].position = newPos;
+            renderBoard();
+            renderPlayers();
+            
+            setTimeout(() => {
+                endTurn();
+            }, 1500);
+        }, 1500);
+    }
+
+    function applyMalus(caseInfo) {
+        gameState.drawnCard = { type: 'malus', content: `Case Malus : ${caseInfo.effect} !` };
+        renderCard();
+        
+        setTimeout(() => {
+            const newPos = Math.max(gameState.players[gameState.currentPlayerIndex].position - 1, 0);
+            gameState.players[gameState.currentPlayerIndex].position = newPos;
+            renderBoard();
+            renderPlayers();
+            
+            setTimeout(() => {
+                endTurn();
+            }, 1500);
+        }, 1500);
+    }
+
+    function handleCorrectAnswer() {
+        gameState.showAnswer = 'correct';
+        gameState.players[gameState.currentPlayerIndex].score += 1;
+        const bonusMove = Math.min(gameState.players[gameState.currentPlayerIndex].position + 1, boardPath.length - 1);
+        gameState.players[gameState.currentPlayerIndex].position = bonusMove;
+        renderBoard();
+        renderPlayers();
+        renderCard();
+        
+        setTimeout(() => {
+            endTurn();
+        }, 3500);
+    }
+
+    function handleWrongAnswer() {
+        gameState.showAnswer = 'incorrect';
+        const penaltyMove = Math.max(gameState.players[gameState.currentPlayerIndex].position - 1, 0);
+        gameState.players[gameState.currentPlayerIndex].position = penaltyMove;
+        renderBoard();
+        renderPlayers();
+        renderCard();
+        
+        setTimeout(() => {
+            endTurn();
+        }, 3500);
+    }
+
+    function renderCard() {
+        const container = document.getElementById('card-container');
+        
+        if (!gameState.drawnCard) {
+            container.innerHTML = '<p class="text-gray-500 text-xl">En attente...</p>';
+            container.className = 'h-64 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl border-4 border-dashed border-gray-400';
+            return;
+        }
+
+        const card = gameState.drawnCard;
+        
+        if (card.type === 'question') {
+            const bgClass = 'bg-blue-50 border-blue-500';
+            container.className = `p-6 rounded-xl border-4 min-h-64 flex flex-col justify-between ${bgClass}`;
+            
+            let content = `
+                <div>
+                    <h4 class="text-2xl font-bold text-blue-700 mb-4">❓ Question</h4>
+                    <p class="text-lg text-gray-800 mb-6 font-semibold">${card.content.q}</p>
+            `;
+            
+            if (!gameState.showAnswer) {
+                content += `
+                    <div class="flex gap-3 mt-6">
+                        <button onclick="handleCorrectAnswer()" class="flex-1 px-6 py-3 bg-green-500 text-white rounded-lg font-bold hover:bg-green-600 transition">
+                            ✓ Correct
+                        </button>
+                        <button onclick="handleWrongAnswer()" class="flex-1 px-6 py-3 bg-red-500 text-white rounded-lg font-bold hover:bg-red-600 transition">
+                            ✗ Incorrect
+                        </button>
+                    </div>
+                `;
+            } else {
+                const isCorrect = gameState.showAnswer === 'correct';
+                content += `
+                    <div>
+                        <div class="p-5 rounded-lg border-4 mb-4 ${isCorrect ? 'bg-green-100 border-green-500' : 'bg-red-100 border-red-500'}">
+                            <p class="text-2xl font-bold mb-2">
+                                ${isCorrect ? "✅ Bravo ! C'était correct !" : "❌ Dommage ! C'était incorrect !"}
+                            </p>
+                            <p class="text-lg">
+                                ${isCorrect ? '+1 point et +1 case bonus' : '-1 case de pénalité'}
+                            </p>
+                        </div>
+                        <div class="p-4 bg-blue-100 border-2 border-blue-500 rounded-lg">
+                            <p class="text-lg font-semibold text-gray-800">
+                                📝 <strong>La bonne réponse est :</strong> ${card.content.a}
+                            </p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            content += '</div>';
+            container.innerHTML = content;
+        } else if (card.type === 'challenge') {
+            const bgClass = 'bg-purple-50 border-purple-500';
+            container.className = `p-6 rounded-xl border-4 min-h-64 flex flex-col justify-between ${bgClass}`;
+            
+            let content = `
+                <div>
+                    <h4 class="text-2xl font-bold text-purple-700 mb-4">🎭 Défi</h4>
+                    <p class="text-lg text-gray-800 mb-6 font-semibold">${card.content}</p>
+            `;
+            
+            if (!gameState.showAnswer) {
+                content += `
+                    <div class="flex gap-3 mt-6">
+                        <button onclick="handleCorrectAnswer()" class="flex-1 px-6 py-3 bg-green-500 text-white rounded-lg font-bold hover:bg-green-600 transition">
+                            ✓ Réussi
+                        </button>
+                        <button onclick="handleWrongAnswer()" class="flex-1 px-6 py-3 bg-red-500 text-white rounded-lg font-bold hover:bg-red-600 transition">
+                            ✗ Raté
+                        </button>
+                    </div>
+                `;
+            } else {
+                const isCorrect = gameState.showAnswer === 'correct';
+                content += `
+                    <div class="p-5 rounded-lg border-4 ${isCorrect ? 'bg-green-100 border-green-500' : 'bg-red-100 border-red-500'}">
+                        <p class="text-2xl font-bold mb-2">
+                            ${isCorrect ? '✅ Bravo ! Défi réussi !' : '❌ Dommage ! Défi raté !'}
+                        </p>
+                        <p class="text-lg">
+                            ${isCorrect ? '+1 point et +1 case bonus' : '-1 case de pénalité'}
+                        </p>
+                    </div>
+                `;
+            }
+            
+            content += '</div>';
+            container.innerHTML = content;
+        } else if (card.type === 'bonus' || card.type === 'malus') {
+            const bgClass = card.type === 'bonus' ? 'bg-green-50 border-green-500' : 'bg-red-50 border-red-500';
+            container.className = `p-6 rounded-xl border-4 min-h-64 flex items-center justify-center ${bgClass}`;
+            container.innerHTML = `<p class="text-2xl font-bold text-center">${card.content}</p>`;
+        }
+    }
+
+    function endTurn() {
+        gameState.drawnCard = null;
+        gameState.diceValue = null;
+        gameState.waitingForAnswer = false;
+        gameState.showAnswer = false;
+        gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+        
+        document.getElementById('dice-result').innerHTML = '';
+        document.getElementById('dice-btn').style.display = 'flex';
+        
+        renderCard();
+        renderPlayers();
+        updateCurrentPlayerText();
+    }
+
+    function resetGame() {
+        gameState.players.forEach(p => {
+            p.position = 0;
+            p.score = 0;
+        });
+        gameState.currentPlayerIndex = 0;
+        gameState.diceValue = null;
+        gameState.drawnCard = null;
+        gameState.waitingForAnswer = false;
+        gameState.showAnswer = false;
+        
+        document.getElementById('dice-result').innerHTML = '';
+        document.getElementById('dice-btn').style.display = 'flex';
+        
+        renderBoard();
+        renderPlayers();
+        renderCard();
+        updateCurrentPlayerText();
+    }
+
+    // Initialisation
+    renderBoard();
+    renderPlayers();
+    updateCurrentPlayerText();
+</script>
+```
+
+</body>
+</html>
